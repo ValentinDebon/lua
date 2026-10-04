@@ -49,9 +49,10 @@
 #define LUA_OK		0
 #define LUA_YIELD	1
 #define LUA_ERRRUN	2
-#define LUA_ERRSYNTAX	3
-#define LUA_ERRMEM	4
-#define LUA_ERRERR	5
+#define LUA_ERREXCEPT	3
+#define LUA_ERRSYNTAX	4
+#define LUA_ERRMEM	5
+#define LUA_ERRERR	6
 
 
 typedef struct lua_State lua_State;
@@ -498,6 +499,7 @@ struct lua_Debug {
 
 /******************************************************************************
 * Copyright (C) 1994-2026 Lua.org, PUC-Rio.
+* Copyright (C) 2026 Valentin Debon.
 *
 * Permission is hereby granted, free of charge, to any person obtaining
 * a copy of this software and associated documentation files (the

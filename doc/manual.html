@@ -3324,6 +3324,8 @@ For such errors, Lua does not call the message handler.
 
 <li><b><a name="pdf-LUA_ERRERR"><code>LUA_ERRERR</code></a>: </b> error while running the message handler.</li>
 
+<li><b><a name="pdf-LUA_ERREXCEPT"><code>LUA_ERREXCEPT</code></a>: </b> a foreign runtime exception was caught.</li>
+
 <li><b><a name="pdf-LUA_ERRSYNTAX"><code>LUA_ERRSYNTAX</code></a>: </b> syntax error during precompilation.</li>
 
 <li><b><a name="pdf-LUA_YIELD"><code>LUA_YIELD</code></a>: </b> the thread (coroutine) yields.</li>
@@ -4744,7 +4746,7 @@ since by then the stack has unwound.
 
 <p>
 The <a href="#lua_pcall"><code>lua_pcall</code></a> function returns one of the following status codes:
-<a href="#pdf-LUA_OK"><code>LUA_OK</code></a>, <a href="#pdf-LUA_ERRRUN"><code>LUA_ERRRUN</code></a>, <a href="#pdf-LUA_ERRMEM"><code>LUA_ERRMEM</code></a>, or <a href="#pdf-LUA_ERRERR"><code>LUA_ERRERR</code></a>.
+<a href="#pdf-LUA_OK"><code>LUA_OK</code></a>, <a href="#pdf-LUA_ERRRUN"><code>LUA_ERRRUN</code></a>, <a href="#pdf-LUA_ERRMEM"><code>LUA_ERRMEM</code></a>, <a href="#pdf-LUA_ERRERR"><code>LUA_ERRERR</code>, or <a href="#pdf-LUA_ERREXCEPT"><code>LUA_ERREXCEPT</code></a>.
 
 
 

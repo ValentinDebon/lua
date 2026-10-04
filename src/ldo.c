@@ -10,7 +10,6 @@
 #include "lprefix.h"
 
 
-#include <setjmp.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -19,6 +18,7 @@
 #include "lapi.h"
 #include "ldebug.h"
 #include "ldo.h"
+#include "lexcept.h"
 #include "lfunc.h"
 #include "lgc.h"
 #include "lmem.h"
@@ -44,46 +44,10 @@
 ** =======================================================
 */
 
-/*
-** LUAI_THROW/LUAI_TRY define how Lua does exception handling. By
-** default, Lua handles errors with exceptions when compiling as
-** C++ code, with _longjmp/_setjmp when asked to use them, and with
-** longjmp/setjmp otherwise.
-*/
-#if !defined(LUAI_THROW)				/* { */
-
-#if defined(__cplusplus) && !defined(LUA_USE_LONGJMP)	/* { */
-
-/* C++ exceptions */
-#define LUAI_THROW(L,c)		throw(c)
-#define LUAI_TRY(L,c,a) \
-	try { a } catch(...) { if ((c)->status == 0) (c)->status = -1; }
-#define luai_jmpbuf		int  /* dummy variable */
-
-#elif defined(LUA_USE_POSIX)				/* }{ */
-
-/* in POSIX, try _longjmp/_setjmp (more efficient) */
-#define LUAI_THROW(L,c)		_longjmp((c)->b, 1)
-#define LUAI_TRY(L,c,a)		if (_setjmp((c)->b) == 0) { a }
-#define luai_jmpbuf		jmp_buf
-
-#else							/* }{ */
-
-/* ISO C handling with long jumps */
-#define LUAI_THROW(L,c)		longjmp((c)->b, 1)
-#define LUAI_TRY(L,c,a)		if (setjmp((c)->b) == 0) { a }
-#define luai_jmpbuf		jmp_buf
-
-#endif							/* } */
-
-#endif							/* } */
-
-
-
 /* chain list of long jump buffers */
 struct lua_longjmp {
   struct lua_longjmp *previous;
-  luai_jmpbuf b;
+  struct _Unwind_Exception exception;
   volatile int status;  /* error code */
 };
 
@@ -109,17 +73,19 @@ void luaD_seterrorobj (lua_State *L, int errcode, StkId oldtop) {
 
 
 l_noret luaD_throw (lua_State *L, int errcode) {
-  if (L->errorJmp) {  /* thread has an error handler? */
-    L->errorJmp->status = errcode;  /* set status */
-    LUAI_THROW(L, L->errorJmp);  /* jump to it */
-  }
-  else {  /* thread has no error handler */
+  do {
+    if (L->errorJmp) {  /* thread has an error handler? */
+      struct lua_longjmp * const lj = L->errorJmp;
+      lj->status = errcode;  /* set status */
+      luaEH_raise(&lj->exception);  /* jump to it */
+    }
+    /* thread has no error handler */
     global_State *g = G(L);
     errcode = luaE_resetthread(L, errcode);  /* close all upvalues */
     L->status = errcode;
     if (g->mainthread->errorJmp) {  /* main thread has a handler? */
       setobjs2s(L, g->mainthread->top.p++, L->top.p - 1);  /* copy error obj. */
-      luaD_throw(g->mainthread, errcode);  /* re-throw in main thread */
+      L = g->mainthread;  /* re-throw in main thread */
     }
     else {  /* no handler at all; abort */
       if (g->panic) {  /* panic function? */
@@ -128,19 +94,30 @@ l_noret luaD_throw (lua_State *L, int errcode) {
       }
       abort();
     }
-  }
+  } while (1);
 }
 
 
+/* keep it noinline else precover or lua_resume
+** may inline it and break the global landing pad. */
+__attribute__((noinline, personality(luaEH_personality_v0)))
 int luaD_rawrunprotected (lua_State *L, Pfunc f, void *ud) {
   l_uint32 oldnCcalls = L->nCcalls;
+  struct _Unwind_Exception *e;
   struct lua_longjmp lj;
   lj.status = LUA_OK;
   lj.previous = L->errorJmp;  /* chain new error handler */
   L->errorJmp = &lj;
-  LUAI_TRY(L, &lj,
+  e = luaEH_setlandingpad();
+  if (l_unlikely(e != NULL)) {
+    if (l_unlikely(e->exception_class != LUA_EXCEPTION_CLASS)) {
+      _Unwind_DeleteException(e);  /* foreign exception caught. */
+      lj.status = LUA_ERREXCEPT;
+    }
+  }
+  else {
     (*f)(L, ud);
-  );
+  }
   L->errorJmp = lj.previous;  /* restore old error handler */
   L->nCcalls = oldnCcalls;
   return lj.status;

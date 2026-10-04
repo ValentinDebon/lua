@@ -1,5 +1,26 @@
 
-This is Lua 5.4.9, released on 10 Aug 2026.
+This is a fork of Lua 5.4.9, originally released on 10 Aug 2026.
+
+This fork is binary incompatible with the original PUC-Rio Lua C API.
+
+Its major modification is a change to the original setjmp/longjmp
+based control flow. This version replaces it with an _Unwind ABI
+exception runtime based control flow.
+
+Beyond replacing setjmp/longjmp, this major modification allows
+the Lua runtime to intercept any type of foreign runtime exception
+Suppose a C++ function bound as a luaCFunction throws an exception,
+the runtime will be able to intercept it, clean it and return with
+a newly introduced LUA_ERREXCEPT error. The major improvement to
+just compiling Lua in C++ is that the binding could be in Rust,
+Ada or any other type of language and would still be able to
+catch the exception. This enforces the protected calls as
+safe barriers in both the Lua runtime but also the binary
+interface of bindings.
+
+Because this implementation is implemented in C only, it
+relies on the personality attribute introduced in clang 23.
+The LLVM toolchain version 23.1.0 released in 25 July 2026.
 
 For installation instructions, license details, and
 further information about Lua, see doc/readme.html.
