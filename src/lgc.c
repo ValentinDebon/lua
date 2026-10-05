@@ -11,6 +11,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <Block.h>
 
 
 #include "lua.h"
@@ -127,6 +128,7 @@ static GCObject **getgclist (GCObject *o) {
     case LUA_VTABLE: return &gco2t(o)->gclist;
     case LUA_VLCL: return &gco2lcl(o)->gclist;
     case LUA_VCCL: return &gco2ccl(o)->gclist;
+    case LUA_VBCL: return &gco2bcl(o)->gclist;
     case LUA_VTHREAD: return &gco2th(o)->gclist;
     case LUA_VPROTO: return &gco2p(o)->gclist;
     case LUA_VUSERDATA: {
@@ -319,8 +321,8 @@ static void reallymarkobject (global_State *g, GCObject *o) {
       }
       /* else... */
     }  /* FALLTHROUGH */
-    case LUA_VLCL: case LUA_VCCL: case LUA_VTABLE:
-    case LUA_VTHREAD: case LUA_VPROTO: {
+    case LUA_VLCL: case LUA_VCCL: case LUA_VBCL:
+    case LUA_VTABLE: case LUA_VTHREAD: case LUA_VPROTO: {
       linkobjgclist(o, g->gray);  /* to be visited later */
       break;
     }
@@ -596,6 +598,13 @@ static int traverseproto (global_State *g, Proto *f) {
 }
 
 
+static int traverseBclosure (global_State *g, BClosure *cl) {
+  int i;
+  for (i = 0; i < cl->nupvalues; i++)  /* mark its upvalues */
+    markvalue(g, &cl->upvalue[i]);
+  return 1 + cl->nupvalues;
+}
+
 static int traverseCclosure (global_State *g, CClosure *cl) {
   int i;
   for (i = 0; i < cl->nupvalues; i++)  /* mark its upvalues */
@@ -670,6 +679,7 @@ static lu_mem propagatemark (global_State *g) {
     case LUA_VUSERDATA: return traverseudata(g, gco2u(o));
     case LUA_VLCL: return traverseLclosure(g, gco2lcl(o));
     case LUA_VCCL: return traverseCclosure(g, gco2ccl(o));
+    case LUA_VBCL: return traverseBclosure(g, gco2bcl(o));
     case LUA_VPROTO: return traverseproto(g, gco2p(o));
     case LUA_VTHREAD: return traversethread(g, gco2th(o));
     default: lua_assert(0); return 0;
@@ -789,6 +799,12 @@ static void freeobj (lua_State *L, GCObject *o) {
     case LUA_VCCL: {
       CClosure *cl = gco2ccl(o);
       luaM_freemem(L, cl, sizeCclosure(cl->nupvalues));
+      break;
+    }
+    case LUA_VBCL: {
+      BClosure *cl = gco2bcl(o);
+      Block_release(cl->b);
+      luaM_freemem(L, cl, sizeBclosure(cl->nupvalues));
       break;
     }
     case LUA_VTABLE:

@@ -538,6 +538,30 @@ l_sinline int precallC (lua_State *L, StkId func, int nresults,
 
 
 /*
+** precall for blocks
+*/
+l_sinline int precallB (lua_State *L, StkId func, int nresults,
+                                            lua_Block b) {
+  int n;  /* number of returns */
+  CallInfo *ci;
+  checkstackGCp(L, LUA_MINSTACK, func);  /* ensure minimum stack size */
+  L->ci = ci = prepCallInfo(L, func, nresults, CIST_C,
+                               L->top.p + LUA_MINSTACK);
+  lua_assert(ci->top.p <= L->stack_last.p);
+  if (l_unlikely(L->hookmask & LUA_MASKCALL)) {
+    int narg = cast_int(L->top.p - func) - 1;
+    luaD_hook(L, LUA_HOOKCALL, -1, 1, narg);
+  }
+  lua_unlock(L);
+  n = b(L);  /* do the actual call */
+  lua_lock(L);
+  api_checknelems(L, n);
+  luaD_poscall(L, ci, n);
+  return n;
+}
+
+
+/*
 ** Prepare a function for a tail call, building its call info on top
 ** of the current call info. 'narg1' is the number of arguments plus 1
 ** (so that it includes the function itself). Return the number of
@@ -547,6 +571,8 @@ int luaD_pretailcall (lua_State *L, CallInfo *ci, StkId func,
                                     int narg1, int delta) {
  retry:
   switch (ttypetag(s2v(func))) {
+    case LUA_VBCL:  /* Block closure */
+      return precallB(L, func, LUA_MULTRET, clBvalue(s2v(func))->b);
     case LUA_VCCL:  /* C closure */
       return precallC(L, func, LUA_MULTRET, clCvalue(s2v(func))->f);
     case LUA_VLCF:  /* light C function */
@@ -591,6 +617,9 @@ int luaD_pretailcall (lua_State *L, CallInfo *ci, StkId func,
 CallInfo *luaD_precall (lua_State *L, StkId func, int nresults) {
  retry:
   switch (ttypetag(s2v(func))) {
+    case LUA_VBCL:  /* Block closure */
+      precallB(L, func, nresults, clBvalue(s2v(func))->b);
+      return NULL;
     case LUA_VCCL:  /* C closure */
       precallC(L, func, nresults, clCvalue(s2v(func))->f);
       return NULL;

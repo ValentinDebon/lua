@@ -22,6 +22,17 @@ Because this implementation is implemented in C only, it
 relies on the personality attribute introduced in clang 23.
 The LLVM toolchain version 23.1.0 released in 25 July 2026.
 
+The second modification is support for Apple's
+Blocks extension as a native Lua primitive.
+
+When trying to interface with a high-level language
+such as Swift, this simplifies lifetime management
+and allows native closures to be used transparently
+and safely as a foreign function interface.
+It could also be used to simplify reentrancy in
+an extended C runtime, removing the need for Lua
+upvalues to share a context between closures.
+
 For installation instructions, license details, and
 further information about Lua, see doc/readme.html.
 

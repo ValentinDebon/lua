@@ -13,6 +13,7 @@
 #include <limits.h>
 #include <stdarg.h>
 #include <string.h>
+#include <Block.h>
 
 #include "lua.h"
 
@@ -598,6 +599,26 @@ LUA_API void lua_pushcclosure (lua_State *L, lua_CFunction fn, int n) {
     api_incr_top(L);
     luaC_checkGC(L);
   }
+  lua_unlock(L);
+}
+
+
+LUA_API void lua_pushblock (lua_State *L, lua_Block blk, int n) {
+  lua_lock(L);
+  BClosure *cl;
+  api_checknelems(L, n);
+  api_check(L, n <= MAXUPVAL, "upvalue index too large");
+  cl = luaF_newBclosure(L, n);
+  cl->b = Block_copy(blk);
+  L->top.p -= n;
+  while (n--) {
+    setobj2n(L, &cl->upvalue[n], s2v(L->top.p + n));
+    /* does not need barrier because closure is white */
+    lua_assert(iswhite(cl));
+  }
+  setclBvalue(L, s2v(L->top.p), cl);
+  api_incr_top(L);
+  luaC_checkGC(L);
   lua_unlock(L);
 }
 
@@ -1358,6 +1379,14 @@ LUA_API void *lua_newuserdatauv (lua_State *L, size_t size, int nuvalue) {
 static const char *aux_upvalue (TValue *fi, int n, TValue **val,
                                 GCObject **owner) {
   switch (ttypetag(fi)) {
+    case LUA_VBCL: {  /* Block closure */
+      BClosure *f = clBvalue(fi);
+      if (!(cast_uint(n) - 1u < cast_uint(f->nupvalues)))
+        return NULL;  /* 'n' not in [1, f->nupvalues] */
+      *val = &f->upvalue[n-1];
+      if (owner) *owner = obj2gco(f);
+      return "";
+    }
     case LUA_VCCL: {  /* C closure */
       CClosure *f = clCvalue(fi);
       if (!(cast_uint(n) - 1u < cast_uint(f->nupvalues)))
@@ -1439,8 +1468,16 @@ LUA_API void *lua_upvalueid (lua_State *L, int fidx, int n) {
       CClosure *f = clCvalue(fi);
       if (1 <= n && n <= f->nupvalues)
         return &f->upvalue[n - 1];
-      /* else */
-    }  /* FALLTHROUGH */
+      else
+        return NULL;
+    }
+    case LUA_VBCL: {  /* Block closure */
+      BClosure *f = clBvalue(fi);
+      if (1 <= n && n <= f->nupvalues)
+        return &f->upvalue[n - 1];
+      else
+        return NULL;
+    }
     case LUA_VLCF:
       return NULL;  /* light C functions have no upvalues */
     default: {

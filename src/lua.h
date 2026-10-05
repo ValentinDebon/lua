@@ -101,6 +101,13 @@ typedef LUA_UNSIGNED lua_Unsigned;
 typedef LUA_KCONTEXT lua_KContext;
 
 
+#ifdef __BLOCKS__
+/*
+** Type for blocks registered with Lua
+*/
+typedef int (^lua_Block) (lua_State *L);
+#endif
+
 /*
 ** Type for C functions registered with Lua
 */
@@ -251,6 +258,9 @@ LUA_API const char *(lua_pushvfstring) (lua_State *L, const char *fmt,
                                                       va_list argp);
 LUA_API const char *(lua_pushfstring) (lua_State *L, const char *fmt, ...);
 LUA_API void  (lua_pushcclosure) (lua_State *L, lua_CFunction fn, int n);
+#ifdef __BLOCKS__
+LUA_API void  (lua_pushblock) (lua_State *L, lua_Block blk, int n);
+#endif
 LUA_API void  (lua_pushboolean) (lua_State *L, int b);
 LUA_API void  (lua_pushlightuserdata) (lua_State *L, void *p);
 LUA_API int   (lua_pushthread) (lua_State *L);

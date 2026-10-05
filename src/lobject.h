@@ -588,11 +588,13 @@ typedef struct Proto {
 #define LUA_VLCL	makevariant(LUA_TFUNCTION, 0)  /* Lua closure */
 #define LUA_VLCF	makevariant(LUA_TFUNCTION, 1)  /* light C function */
 #define LUA_VCCL	makevariant(LUA_TFUNCTION, 2)  /* C closure */
+#define LUA_VBCL	makevariant(LUA_TFUNCTION, 3)  /* Block */
 
 #define ttisfunction(o)		checktype(o, LUA_TFUNCTION)
 #define ttisLclosure(o)		checktag((o), ctb(LUA_VLCL))
 #define ttislcf(o)		checktag((o), LUA_VLCF)
 #define ttisCclosure(o)		checktag((o), ctb(LUA_VCCL))
+#define ttisBclosure(o)		checktag((o), ctb(LUA_VBCL))
 #define ttisclosure(o)         (ttisLclosure(o) || ttisCclosure(o))
 
 
@@ -602,6 +604,7 @@ typedef struct Proto {
 #define clLvalue(o)	check_exp(ttisLclosure(o), gco2lcl(val_(o).gc))
 #define fvalue(o)	check_exp(ttislcf(o), val_(o).f)
 #define clCvalue(o)	check_exp(ttisCclosure(o), gco2ccl(val_(o).gc))
+#define clBvalue(o)	check_exp(ttisBclosure(o), gco2bcl(val_(o).gc))
 
 #define fvalueraw(v)	((v).f)
 
@@ -618,6 +621,11 @@ typedef struct Proto {
 #define setclCvalue(L,obj,x) \
   { TValue *io = (obj); CClosure *x_ = (x); \
     val_(io).gc = obj2gco(x_); settt_(io, ctb(LUA_VCCL)); \
+    checkliveness(L,io); }
+
+#define setclBvalue(L,obj,x) \
+  { TValue *io = (obj); BClosure *x_ = (x); \
+    val_(io).gc = obj2gco(x_); settt_(io, ctb(LUA_VBCL)); \
     checkliveness(L,io); }
 
 
@@ -644,6 +652,13 @@ typedef struct UpVal {
 #define ClosureHeader \
 	CommonHeader; lu_byte nupvalues; GCObject *gclist
 
+typedef struct BClosure {
+  ClosureHeader;
+  lua_Block b;
+  TValue upvalue[1];  /* list of upvalues */
+} BClosure;
+
+
 typedef struct CClosure {
   ClosureHeader;
   lua_CFunction f;
@@ -659,6 +674,7 @@ typedef struct LClosure {
 
 
 typedef union Closure {
+  BClosure b;
   CClosure c;
   LClosure l;
 } Closure;

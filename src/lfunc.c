@@ -24,6 +24,14 @@
 
 
 
+BClosure *luaF_newBclosure (lua_State *L, int nupvals) {
+  GCObject *o = luaC_newobj(L, LUA_VBCL, sizeBclosure(nupvals));
+  BClosure *c = gco2bcl(o);
+  c->nupvalues = cast_byte(nupvals);
+  return c;
+}
+
+
 CClosure *luaF_newCclosure (lua_State *L, int nupvals) {
   GCObject *o = luaC_newobj(L, LUA_VCCL, sizeCclosure(nupvals));
   CClosure *c = gco2ccl(o);

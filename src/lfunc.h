@@ -11,6 +11,9 @@
 #include "lobject.h"
 
 
+#define sizeBclosure(n)	(cast_int(offsetof(BClosure, upvalue)) + \
+                         cast_int(sizeof(TValue)) * (n))
+
 #define sizeCclosure(n)	(cast_int(offsetof(CClosure, upvalue)) + \
                          cast_int(sizeof(TValue)) * (n))
 
@@ -48,6 +51,7 @@
 
 
 LUAI_FUNC Proto *luaF_newproto (lua_State *L);
+LUAI_FUNC BClosure *luaF_newBclosure (lua_State *L, int nupvals);
 LUAI_FUNC CClosure *luaF_newCclosure (lua_State *L, int nupvals);
 LUAI_FUNC LClosure *luaF_newLclosure (lua_State *L, int nupvals);
 LUAI_FUNC void luaF_initupvals (lua_State *L, LClosure *cl);

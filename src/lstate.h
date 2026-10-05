@@ -375,6 +375,7 @@ union GCUnion {
 #define gco2u(o)  check_exp((o)->tt == LUA_VUSERDATA, &((cast_u(o))->u))
 #define gco2lcl(o)  check_exp((o)->tt == LUA_VLCL, &((cast_u(o))->cl.l))
 #define gco2ccl(o)  check_exp((o)->tt == LUA_VCCL, &((cast_u(o))->cl.c))
+#define gco2bcl(o)  check_exp((o)->tt == LUA_VBCL, &((cast_u(o))->cl.b))
 #define gco2cl(o)  \
 	check_exp(novariant((o)->tt) == LUA_TFUNCTION, &((cast_u(o))->cl))
 #define gco2t(o)  check_exp((o)->tt == LUA_VTABLE, &((cast_u(o))->h))
