@@ -1,0 +1,8 @@
+LUAEH_5.4 {
+global:
+	lua_*; /* LUA_API */
+	luaL_*; /* LUALIB_API */
+	luaopen_*; /* LUAMOD_API */
+local:
+	*;
+};
